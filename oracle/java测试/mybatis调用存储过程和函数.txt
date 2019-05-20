@@ -1,0 +1,105 @@
+﻿mybatis 动态sql日期
+	<select id="findByCondition" parameterType="user" resultType="user">
+        <include refid="selectUser"></include>
+        <where>
+            <if test="id!=null">
+                and id=#{id}
+            </if>
+            <if test="username!=null and username!=''">
+                and username=#{username}
+            </if>
+            <if test="password!=null and password!=''">
+                and password=#{password}
+            </if>
+            <!--
+                >或者>=都可用
+                <或者<= 用
+                    1、<![CDATA[  and birthday <= #{birthday}  ]]>
+                    2、或者 &lt;=  等于 <=
+                    3、		&lt;   等于 <
+            -->
+            <if test="birthday!=null">
+                and birthday &lt;= #{birthday}
+
+            </if>
+        </where>
+
+    </select>
+mybatis 调用存储过程和函数
+
+	oracle10g数据库使用11.2.0.4及以上版本的驱动，才能调用存储过程和存储函数，
+		否则报java.lang.AbstractMethodError: Method oracle/jdbc/driver/T4CCallableStatement.isClosed()Z is abstract
+		
+	如果仓库没有执行以下命令先安装到数据库
+	mvn install:install-file -DgroupId=com.oracle -DartifactId=ojdbc6 -Dversion=11.2.0.4 -Dpackaging=jar -Dfile=E:\xczxbefor\oracle\oracle_day02\ojdbc6.jar
+
+
+
+	UserMapper.xml
+		<select id="callProcedure" parameterType="map" statementType="CALLABLE">
+			{
+				call p_yearsal(
+				   #{p1,mode=IN,jdbcType=NUMERIC},
+				   #{p2,mode=OUT,jdbcType=NUMERIC}
+				)
+			}
+		</select>
+		<select id="callFunction" parameterType="map" statementType="CALLABLE">
+			{
+			  #{p2,mode=OUT,jdbcType=NUMERIC} 
+			  = call
+				f_yearsal(
+					#{p1,mode=IN,jdbcType=NUMERIC}
+				)
+			}
+		</select>
+	UserMapper接口
+		public void callProcedure(Map map);
+		public void callFunction(Map map);
+	Mybatis测试用例
+		@Test
+		public void testP() throws IOException {
+			InputStream resourceAsStream = Resources.getResourceAsStream("SqlMapConfig.xml");
+			SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(resourceAsStream);
+			SqlSession sqlSession = sqlSessionFactory.openSession();
+			UserMapper mapper = sqlSession.getMapper(UserMapper.class);
+
+			Map map=new HashMap();
+			map.put("p1", 7788);
+			mapper.callProcedure(map);
+			System.out.println("----"+map);
+			System.out.println("----=="+map.get("p2"));
+		}
+		----运行输出如下
+		2019-05-12 19:42:36  [ main:305 ] - [ DEBUG ]  Opening JDBC Connection
+		2019-05-12 19:42:36  [ main:972 ] - [ DEBUG ]  Created connection 183284570.
+		2019-05-12 19:42:36  [ main:972 ] - [ DEBUG ]  Setting autocommit to false on JDBC Connection [oracle.jdbc.driver.T4CConnection@aecb35a]
+		2019-05-12 19:42:36  [ main:973 ] - [ DEBUG ]  ==>  Preparing: { call p_yearsal( ?, ? ) } 
+		2019-05-12 19:42:36  [ main:1134 ] - [ DEBUG ]  ==> Parameters: 7788(Integer)
+		----{p1=7788, p2=40800}
+		----==40800
+		
+		@Test
+		public void testF() throws IOException {
+			InputStream resourceAsStream = Resources.getResourceAsStream("SqlMapConfig.xml");
+			SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(resourceAsStream);
+			SqlSession sqlSession = sqlSessionFactory.openSession();
+			UserMapper mapper = sqlSession.getMapper(UserMapper.class);
+
+			Map map=new HashMap();
+			map.put("p1", 7788);
+			mapper.callFunction(map);
+			System.out.println("------"+map.get("p2"));
+		}
+		----运行输出如下
+		2019-05-12 19:38:01  [ main:320 ] - [ DEBUG ]  Opening JDBC Connection
+		2019-05-12 19:38:02  [ main:927 ] - [ DEBUG ]  Created connection 183284570.
+		2019-05-12 19:38:02  [ main:927 ] - [ DEBUG ]  Setting autocommit to false on JDBC Connection [oracle.jdbc.driver.T4CConnection@aecb35a]
+		2019-05-12 19:38:02  [ main:929 ] - [ DEBUG ]  ==>  Preparing: { ?=call f_yearsal( ? ) } 
+		2019-05-12 19:38:02  [ main:1142 ] - [ DEBUG ]  ==> Parameters: 7788(Integer)
+		------40800
+
+先设置忽略 再share了
+
+
+
